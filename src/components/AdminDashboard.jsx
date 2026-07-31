@@ -8,7 +8,7 @@ const AdminDashboard = ({ onBackToStore }) => {
   // Fetch All Orders from Express API
   const fetchOrders = () => {
     setLoading(true);
-    fetch('http://localhost:5000/api/admin/orders')
+    fetch('[https://fpv-drone-store.onrender.com](https://fpv-drone-store.onrender.com)/api/admin/orders')
       .then((res) => res.json())
       .then((data) => {
         setOrders(data);

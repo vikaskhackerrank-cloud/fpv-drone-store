@@ -26,7 +26,7 @@ const CartModal = ({ isOpen, onClose, cartItems, onUpdateQuantity, onRemoveItem,
         status: "Payment Received / Assembling"
       };
 
-      const res = await fetch('http://localhost:5000/api/orders', {
+      const res = await fetch('[https://fpv-drone-store.onrender.com](https://fpv-drone-store.onrender.com)/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(orderPayload),
