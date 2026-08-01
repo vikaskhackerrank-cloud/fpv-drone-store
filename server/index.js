@@ -58,7 +58,11 @@ app.post('/api/payment/create-order', (req, res) => {
   };
 
   res.json({ success: true, order });
+
 });
+// server/index.js me dekhein ye line hai ya nahi:
+const productRoutes = require('./routes/products');
+app.use('/api/products', productRoutes);
 
 // Database Connection
 mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 15000 })
