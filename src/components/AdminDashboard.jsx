@@ -1,17 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { Package, DollarSign, Clock, CheckCircle, RefreshCw, ShieldAlert, ArrowLeft } from 'lucide-react';
+import { Package, DollarSign, Clock, RefreshCw, ArrowLeft, Upload, PlusCircle, Image as ImageIcon } from 'lucide-react';
 
 const AdminDashboard = ({ onBackToStore }) => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Cloudinary Product Upload States
+  const [productName, setProductName] = useState('');
+  const [price, setPrice] = useState('');
+  const [category, setCategory] = useState('Frames');
+  const [stock, setStock] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+
+  // Dynamic API Base URL
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://fpv-drone-store.onrender.com';
+
   // Fetch All Orders from Express API
   const fetchOrders = () => {
     setLoading(true);
-    fetch('[https://fpv-drone-store.onrender.com](https://fpv-drone-store.onrender.com)/api/admin/orders')
+    fetch(`${API_BASE_URL}/api/admin/orders`)
       .then((res) => res.json())
       .then((data) => {
-        setOrders(data);
+        setOrders(Array.isArray(data) ? data : []);
         setLoading(false);
       })
       .catch((err) => {
@@ -24,10 +35,10 @@ const AdminDashboard = ({ onBackToStore }) => {
     fetchOrders();
   }, []);
 
-  // Update Status in MongoDB
+  // Update Order Status in MongoDB
   const handleStatusChange = async (orderId, newStatus) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/admin/orders/${orderId}`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/orders/${orderId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
@@ -37,9 +48,53 @@ const AdminDashboard = ({ onBackToStore }) => {
         setOrders((prev) =>
           prev.map((o) => (o._id === orderId ? { ...o, status: newStatus } : o))
         );
+      } else {
+        alert('Failed to update status');
       }
     } catch (err) {
+      console.error('Error updating status:', err);
       alert('Failed to update status');
+    }
+  };
+
+  // 📸 Cloudinary Image Upload Handler Function
+  const handleImageUpload = async (e) => {
+    e.preventDefault();
+    if (!selectedFile) {
+      alert('Please select an image file first!');
+      return;
+    }
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('name', productName);
+    formData.append('price', price);
+    formData.append('category', category);
+    formData.append('stock', stock);
+    formData.append('image', selectedFile); // Sends actual file to Cloudinary Middleware
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/products/upload`, {
+        method: 'POST',
+        body: formData, // Sending multipart/form-data
+      });
+      const data = await response.json();
+
+      if (response.ok) {
+        alert('🎉 Product & Image uploaded to Cloudinary & MongoDB successfully!');
+        // Reset Form
+        setProductName('');
+        setPrice('');
+        setStock('');
+        setSelectedFile(null);
+      } else {
+        alert(`Upload Failed: ${data.message}`);
+      }
+    } catch (err) {
+      console.error('Error uploading product:', err);
+      alert('Cloudinary upload failed!');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -70,7 +125,7 @@ const AdminDashboard = ({ onBackToStore }) => {
 
         <button
           onClick={fetchOrders}
-          className="bg-slate-900 border border-slate-800 hover:border-cyan-500 text-gray-300 hover:text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center space-x-2 transition"
+          className="bg-slate-900 border border-slate-800 hover:border-cyan-500 text-gray-300 hover:text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center space-x-2 transition cursor-pointer"
         >
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           <span>Refresh Live Orders</span>
@@ -110,6 +165,96 @@ const AdminDashboard = ({ onBackToStore }) => {
               <Clock className="h-6 w-6" />
             </div>
           </div>
+        </div>
+
+        {/* 📸 Cloudinary Product Upload Form Section */}
+        <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6">
+          <div className="flex items-center space-x-2 mb-6 border-b border-slate-800 pb-4">
+            <PlusCircle className="h-5 w-5 text-cyan-400" />
+            <h3 className="font-bold text-lg text-white">Add New FPV Product (Cloudinary Powered)</h3>
+          </div>
+
+          <form onSubmit={handleImageUpload} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 mb-1">Product Name</label>
+              <input
+                type="text"
+                required
+                value={productName}
+                onChange={(e) => setProductName(e.target.value)}
+                placeholder="e.g. Apex 5-Inch Carbon Frame"
+                className="w-full bg-slate-950 border border-slate-800 text-sm rounded-xl p-3 focus:outline-none focus:border-cyan-400 text-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 mb-1">Price (₹)</label>
+              <input
+                type="number"
+                required
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder="e.g. 4999"
+                className="w-full bg-slate-950 border border-slate-800 text-sm rounded-xl p-3 focus:outline-none focus:border-cyan-400 text-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 mb-1">Category</label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 text-sm rounded-xl p-3 focus:outline-none focus:border-cyan-400 text-white"
+              >
+                <option value="Frames">Frames</option>
+                <option value="Motors">Motors</option>
+                <option value="Stack/FC">Stack / FC</option>
+                <option value="VTX & Camera">VTX & Camera</option>
+                <option value="Batteries">Batteries</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 mb-1">Stock Quantity</label>
+              <input
+                type="number"
+                required
+                value={stock}
+                onChange={(e) => setStock(e.target.value)}
+                placeholder="e.g. 10"
+                className="w-full bg-slate-950 border border-slate-800 text-sm rounded-xl p-3 focus:outline-none focus:border-cyan-400 text-white"
+              />
+            </div>
+
+            {/* File Input for Cloudinary Upload */}
+            <div className="md:col-span-2">
+              <label className="block text-xs font-semibold text-gray-400 mb-1">Upload Product Image (Cloudinary)</label>
+              <div className="flex items-center justify-center w-full border-2 border-dashed border-slate-800 rounded-xl p-4 bg-slate-950 hover:border-cyan-500/50 transition">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setSelectedFile(e.target.files[0])}
+                  className="hidden"
+                  id="cloudinary-file-input"
+                />
+                <label htmlFor="cloudinary-file-input" className="cursor-pointer flex items-center space-x-3 text-sm text-gray-400">
+                  <ImageIcon className="h-6 w-6 text-cyan-400" />
+                  <span>{selectedFile ? selectedFile.name : 'Choose JPG/PNG/WEBP photo to upload'}</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="md:col-span-2">
+              <button
+                type="submit"
+                disabled={uploading}
+                className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold p-3 rounded-xl flex items-center justify-center space-x-2 transition disabled:opacity-50 cursor-pointer"
+              >
+                <Upload className="h-5 w-5" />
+                <span>{uploading ? 'Uploading to Cloudinary...' : 'Upload & Create Product'}</span>
+              </button>
+            </div>
+          </form>
         </div>
 
         {/* Live Orders Table */}
@@ -165,13 +310,13 @@ const AdminDashboard = ({ onBackToStore }) => {
                       </td>
 
                       <td className="py-4 px-4 text-xs text-gray-500">
-                        {new Date(order.createdAt).toLocaleDateString('en-IN', {
+                        {order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-IN', {
                           day: 'numeric',
                           month: 'short',
                           year: 'numeric',
                           hour: '2-digit',
                           minute: '2-digit'
-                        })}
+                        }) : 'Recent'}
                       </td>
 
                       <td className="py-4 px-4">
